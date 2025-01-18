@@ -10,8 +10,10 @@ Current State:
 4. Can play Again
 5. Logs to a console
 
-Main Menu: 
+Main Menu:
+
 ![Main Menu](images/Main-Menu.png)
 
 Dead Menu:
+
 ![Dead Menu](images/Game-over.png)
