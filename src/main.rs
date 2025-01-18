@@ -19,14 +19,17 @@ impl State {
 
     fn play(&mut self, ctx: &mut BTerm) {
         // TODO: fill stub
+        println!("Playing...");
         self.mode = GameMode::End;
     }
 
     fn restart(&mut self) {
+        println!("Restarting...");
         self.mode = GameMode::Playing;
     }
 
     fn main_menu(&mut self, ctx: &mut BTerm) {
+        println!("In Main Menu");
         ctx.cls();
         ctx.print_centered(5, "Your dragon awaits");
         ctx.print_centered(8, "(P) Play");
@@ -43,6 +46,7 @@ impl State {
     }
 
     fn dead(&mut self, ctx: &mut BTerm) {
+        println!("Game over");
         ctx.cls();
         ctx.print_centered(5, "GAME OVER");
         ctx.print_centered(8, "(P) Play");
