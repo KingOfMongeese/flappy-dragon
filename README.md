@@ -11,6 +11,7 @@ Want to add:
 1. More than one obstacle
 2. Speed up as you progess
 3. Unit Tests
+4. Add HighScore tracker
 
 Demo:
 

@@ -1,8 +1,9 @@
+#![windows_subsystem = "windows"]
 use bracket_lib::prelude::*;
 
 const SCREEN_WIDTH : i32 = 80;
 const SCREEN_HEIGHT : i32 = 50;
-const FRAME_DURATION : f32 = 40.0;
+const FRAME_DURATION : f32 = 30.0;
 
 struct Player {
     x: i32,
