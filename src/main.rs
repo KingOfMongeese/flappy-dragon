@@ -123,7 +123,7 @@ impl State {
     }
 
     fn play(&mut self, ctx: &mut BTerm) {
-        ctx.cls_bg(NAVY);
+        ctx.cls_bg(LIGHTBLUE4);
         self.frame_time += ctx.frame_time_ms;
         if self.frame_time > FRAME_DURATION {
             self.frame_time = 0.0;
@@ -137,6 +137,7 @@ impl State {
         self.player.render(ctx);
         ctx.print(0, 0, "Press Space to flap ><");
         ctx.print(0, 1, &format!("Score {}", self.score));
+        ctx.print(SCREEN_WIDTH - 20, 0, &format!("x,y: {}, {}", self.player.x, self.player.y));
 
         self.obstacle.render(ctx, self.player.x);
         if self.player.x > self.obstacle.x {
