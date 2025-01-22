@@ -4,11 +4,21 @@ Repo that holds the code for Hands-on Rust guided 2D Dev first game
 
 Current State: 
 
-1. Will show the main menu
-2. Switch to playing mode and die instantly
-3. Show the dead menu
-4. Can play Again
-5. Logs to a console
+Full game as in the book (with a few changes)
+
+Want to add;
+
+1. More than one obstacle
+2. Speed up as you progess
+3. Unit Tests
+
+Demo:
+
+
+https://github.com/user-attachments/assets/e37a0fc6-b9e1-4327-ba5e-ea26d97c9a18
+
+
+
 
 Main Menu:
 
