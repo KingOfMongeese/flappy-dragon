@@ -6,7 +6,7 @@ Current State:
 
 Full game as in the book (with a few changes)
 
-Want to add;
+Want to add:
 
 1. More than one obstacle
 2. Speed up as you progess
