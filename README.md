@@ -6,23 +6,10 @@ Current State:
 
 Full game as in the book (a fair amount of adjustments)
 
-Want to add:
-
-1. More than one obstacle
-2. Speed up as you progess
-3. Unit Tests
-4. Add HighScore tracker
-5. sound
-
 Demo:
 
 
-https://github.com/user-attachments/assets/f4ee0d60-6e61-4fc4-9760-c904d379c705
+https://github.com/user-attachments/assets/25e42ac0-19aa-4262-8070-ae1fbf64f541
 
-Main Menu:
 
-![Main Menu](images/Main-Menu.png)
 
-Dead Menu:
-
-![Dead Menu](images/Game-over.png)
