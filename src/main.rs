@@ -42,8 +42,8 @@ fn play_sound(path: String, volume: f32) {
 
 fn play_bell(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\bell.wav"),
-        0.02 * volume_mod as f32,
+        String::from(r"sounds_files\bell.mp3"),
+        0.15 * volume_mod as f32,
     );
 }
 
@@ -65,6 +65,13 @@ fn play_setting_click(volume_mod: i32) {
     play_sound(
         String::from(r"sounds_files\setting.wav"),
         0.04 * volume_mod as f32,
+    );
+}
+
+fn play_encouragement(volume_mod: i32) {
+    play_sound(
+        String::from(r"sounds_files\encouragement.wav"),
+        0.015 * volume_mod as f32,
     );
 }
 
@@ -262,6 +269,12 @@ impl State {
             ctx.print_centered(0, "(D) DEV VIEW");
         }
 
+        //render ground
+        // must be before obstacle
+        for x in 0..SCREEN_WIDTH {
+            ctx.set(x, SCREEN_HEIGHT - 1, GREEN4, GREEN4, to_cp437('D'));
+        }
+
         self.obstacle.render(ctx, self.player.x);
         if self.player.x > self.obstacle.x {
             play_bell(self.settings.volume);
@@ -271,6 +284,7 @@ impl State {
                 if let Some(saying) = ENCOURAGEMENT_LIST.choose(&mut rng) {
                     self.current_encouragement = String::from(*saying);
                     self.encouragement_delay_cnt = ENCOURAGEMENT_DELAY_START;
+                    play_encouragement(self.settings.volume);
                 }
             }
             self.obstacle = Obstacle::new(
@@ -284,6 +298,11 @@ impl State {
             self.mode = GameMode::End;
             let mut rng = thread_rng();
             play_splat(self.settings.volume);
+            ctx.set(1, self.player.y, RED, BLACK, to_cp437('@'));
+            ctx.set(0, self.player.y, RED, BLACK, to_cp437('@'));
+            ctx.set(1, self.player.y + 1, RED, BLACK, to_cp437('@'));
+            ctx.set(1, self.player.y - 1, RED, BLACK, to_cp437('@'));
+            ctx.set(2, self.player.y, RED, BLACK, to_cp437('@'));
 
             if let Some(saying) = DEAD_SCREEN_MESSAGE.choose(&mut rng) {
                 self.dead_screen_msg = String::from(*saying);
@@ -402,8 +421,6 @@ impl GameState for State {
 }
 
 fn main() -> BError {
-    //TODO: need to find a way to volume this?
-    //play_sound(String::from(r"sounds_files\background.mp3"), 0.03);
     let context = BTermBuilder::simple80x50()
         .with_title("Flappy Dragon")
         .build()?;
