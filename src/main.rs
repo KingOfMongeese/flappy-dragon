@@ -219,6 +219,12 @@ impl State {
             self.player.gravity_and_move();
         }
 
+        //render ground
+        // must be before obstacle
+        for x in 0..SCREEN_WIDTH {
+            ctx.set(x, SCREEN_HEIGHT - 1, GREEN4, GREEN4, to_cp437('D'));
+        }
+
         if let Some(key) = ctx.key {
             match key {
                 VirtualKeyCode::Space => self
@@ -263,16 +269,10 @@ impl State {
             );
             ctx.print_right(
                 SCREEN_WIDTH - 1,
-                SCREEN_HEIGHT - 1,
+                3,
                 format!("Current Obstable Gap Size: {}", self.obstacle.size),
             );
             ctx.print_centered(0, "(D) DEV VIEW");
-        }
-
-        //render ground
-        // must be before obstacle
-        for x in 0..SCREEN_WIDTH {
-            ctx.set(x, SCREEN_HEIGHT - 1, GREEN4, GREEN4, to_cp437('D'));
         }
 
         self.obstacle.render(ctx, self.player.x);
