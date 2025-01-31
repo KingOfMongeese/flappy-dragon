@@ -2,6 +2,10 @@
 use bracket_lib::prelude::*;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use rodio::{Decoder, OutputStream, Sink};
+use std::fs::File;
+use std::io::BufReader;
+use std::thread;
 
 const SCREEN_WIDTH: i32 = 80;
 const SCREEN_HEIGHT: i32 = 50;
@@ -22,9 +26,59 @@ const DEAD_SCREEN_MESSAGE: [&str; 5] = [
     "AH THE SATISFYING SOUND OF \"SPLAT\"",
 ];
 
+fn play_sound(path: String, volume: f32) {
+    thread::spawn(move || {
+        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+        let sink = Sink::try_new(&stream_handle).unwrap();
+        sink.set_volume(volume);
+
+        let file = File::open(path).unwrap();
+        let source = Decoder::new(BufReader::new(file)).unwrap();
+
+        sink.append(source);
+        sink.sleep_until_end();
+    });
+}
+
+fn play_bell(volume_mod: i32) {
+    play_sound(
+        String::from(r"sounds_files\bell.mp3"),
+        0.15 * volume_mod as f32,
+    );
+}
+
+fn play_flap(volume_mod: i32) {
+    play_sound(
+        String::from(r"sounds_files\flap.wav"),
+        0.3 * volume_mod as f32,
+    );
+}
+
+fn play_splat(volume_mod: i32) {
+    play_sound(
+        String::from(r"sounds_files\splat.wav"),
+        0.04 * volume_mod as f32,
+    );
+}
+
+fn play_setting_click(volume_mod: i32) {
+    play_sound(
+        String::from(r"sounds_files\setting.wav"),
+        0.04 * volume_mod as f32,
+    );
+}
+
+fn play_encouragement(volume_mod: i32) {
+    play_sound(
+        String::from(r"sounds_files\encouragement.wav"),
+        0.015 * volume_mod as f32,
+    );
+}
+
 struct Settings {
     flap_velocity: f32,
     min_gap_size: i32,
+    volume: i32,
 }
 
 impl Default for Settings {
@@ -32,6 +86,7 @@ impl Default for Settings {
         Self {
             flap_velocity: -2.0,
             min_gap_size: 2,
+            volume: 5,
         }
     }
 }
@@ -67,8 +122,9 @@ impl Player {
         }
     }
 
-    fn flap(&mut self, velocity: f32) {
+    fn flap(&mut self, velocity: f32, volume_mod: i32) {
         self.velocity = velocity;
+        play_flap(volume_mod);
     }
 }
 
@@ -163,9 +219,17 @@ impl State {
             self.player.gravity_and_move();
         }
 
+        //render ground
+        // must be before obstacle
+        for x in 0..SCREEN_WIDTH {
+            ctx.set(x, SCREEN_HEIGHT - 1, GREEN4, GREEN4, to_cp437('D'));
+        }
+
         if let Some(key) = ctx.key {
             match key {
-                VirtualKeyCode::Space => self.player.flap(self.settings.flap_velocity),
+                VirtualKeyCode::Space => self
+                    .player
+                    .flap(self.settings.flap_velocity, self.settings.volume),
                 VirtualKeyCode::D => self.dev_toggle = !self.dev_toggle,
                 VirtualKeyCode::P => {
                     self.mode = GameMode::Paused;
@@ -205,7 +269,7 @@ impl State {
             );
             ctx.print_right(
                 SCREEN_WIDTH - 1,
-                SCREEN_HEIGHT - 1,
+                3,
                 format!("Current Obstable Gap Size: {}", self.obstacle.size),
             );
             ctx.print_centered(0, "(D) DEV VIEW");
@@ -213,12 +277,14 @@ impl State {
 
         self.obstacle.render(ctx, self.player.x);
         if self.player.x > self.obstacle.x {
+            play_bell(self.settings.volume);
             self.score += 1;
             if self.score % 5 == 0 {
                 let mut rng = thread_rng();
                 if let Some(saying) = ENCOURAGEMENT_LIST.choose(&mut rng) {
                     self.current_encouragement = String::from(*saying);
                     self.encouragement_delay_cnt = ENCOURAGEMENT_DELAY_START;
+                    play_encouragement(self.settings.volume);
                 }
             }
             self.obstacle = Obstacle::new(
@@ -231,6 +297,12 @@ impl State {
         if self.player.y > SCREEN_HEIGHT || self.obstacle.hit_obstacle(&self.player) {
             self.mode = GameMode::End;
             let mut rng = thread_rng();
+            play_splat(self.settings.volume);
+            ctx.set(1, self.player.y, RED, BLACK, to_cp437('@'));
+            ctx.set(0, self.player.y, RED, BLACK, to_cp437('@'));
+            ctx.set(1, self.player.y + 1, RED, BLACK, to_cp437('@'));
+            ctx.set(1, self.player.y - 1, RED, BLACK, to_cp437('@'));
+            ctx.set(2, self.player.y, RED, BLACK, to_cp437('@'));
 
             if let Some(saying) = DEAD_SCREEN_MESSAGE.choose(&mut rng) {
                 self.dead_screen_msg = String::from(*saying);
@@ -288,18 +360,31 @@ impl State {
 
         if let Some(key) = ctx.key {
             match key {
-                VirtualKeyCode::M => self.mode = GameMode::Menu,
+                VirtualKeyCode::M => {
+                    self.mode = GameMode::Menu;
+                    play_setting_click(self.settings.volume);
+                }
                 VirtualKeyCode::F => {
                     self.settings.flap_velocity -= 0.5;
                     if self.settings.flap_velocity < -4.0 {
                         self.settings.flap_velocity = -1.5;
                     }
+                    play_setting_click(self.settings.volume);
                 }
                 VirtualKeyCode::G => {
                     self.settings.min_gap_size += 1;
                     if self.settings.min_gap_size > 10 {
                         self.settings.min_gap_size = 1;
                     }
+                    play_setting_click(self.settings.volume);
+                }
+
+                VirtualKeyCode::V => {
+                    self.settings.volume += 1;
+                    if self.settings.volume > 10 {
+                        self.settings.volume = 0;
+                    }
+                    play_setting_click(self.settings.volume);
                 }
                 _ => (),
             }
@@ -312,8 +397,9 @@ impl State {
         );
         ctx.print_centered(
             7,
-            format!("(G) Minimum Gap Size {}", self.settings.min_gap_size),
+            format!("(G) Minimum Gap Size: {}", self.settings.min_gap_size),
         );
+        ctx.print_centered(8, format!("(V) Volume: {}", self.settings.volume));
         ctx.print_centered(10, "(M) Main Menu");
         ctx.print_right(
             SCREEN_WIDTH - 1,
