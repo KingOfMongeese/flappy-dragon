@@ -6,6 +6,8 @@ use rodio::{Decoder, OutputStream, Sink};
 use std::fs::File;
 use std::io::BufReader;
 use std::thread;
+use tempfile::TempDir;
+use zip::read::ZipArchive;
 
 const SCREEN_WIDTH: i32 = 80;
 const SCREEN_HEIGHT: i32 = 50;
@@ -122,7 +124,7 @@ impl Player {
             PointF::new(3.0, 3.0),
             WHITE,
             LIGHTBLUE4,
-            DRAGON_FRAMES[self.current_frame]
+            DRAGON_FRAMES[self.current_frame],
         );
         ctx.set_active_console(0);
     }
@@ -456,15 +458,41 @@ impl GameState for State {
     }
 }
 
+fn load_sprites() -> TempDir {
+    let temp_dir = TempDir::new().expect("failed to make tempdir");
+    let temp_dir_path = temp_dir.path();
+
+    let zip_file_path = r"resources\sprites.zip";
+    let file = File::open(zip_file_path).expect("Failed to get file path");
+    let mut archive = ZipArchive::new(file).expect("Failed to get archive path");
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).expect("Failed to get index");
+        let out_path = temp_dir_path.join(file.name());
+
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+
+        let mut out_file = File::create(out_path).expect("Failed to Extract");
+        std::io::copy(&mut file, &mut out_file).expect("Failed to copy");
+    }
+
+    temp_dir
+}
+
 fn main() -> BError {
-    println!("1");
+    let temp_dir = load_sprites();
+    let temp_dir_path = temp_dir.path();
+    let term_file_path = format!(r"{}\terminal8x8.png", temp_dir_path.display());
+    let dragon_file_path = format!(r"{}\DragonHatchling_Sprites.png", temp_dir_path.display());
+
     let context = BTermBuilder::new()
-        .with_resource_path(r"resources")
-        .with_font(r"sprites\terminal8x8.png", 8, 8)
-        .with_font(r"sprites\DragonHatchling_Sprites.png", 32, 32)
-        .with_simple_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\terminal8x8.png")
-        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\DragonHatchling_Sprites.png")
-        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\terminal8x8.png")
+        .with_font(&term_file_path, 8, 8)
+        .with_font(&dragon_file_path, 32, 32)
+        .with_simple_console(SCREEN_WIDTH, SCREEN_HEIGHT, &term_file_path)
+        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, &dragon_file_path)
+        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, &term_file_path)
         .with_title("Flappy Dragon")
         .with_tile_dimensions(16, 16)
         .with_fitscreen(true)
