@@ -26,6 +26,8 @@ const DEAD_SCREEN_MESSAGE: [&str; 5] = [
     "AH THE SATISFYING SOUND OF \"SPLAT\"",
 ];
 
+const DRAGON_FRAMES: [u16; 5] = [0, 1, 2, 3, 4];
+
 fn play_sound(path: String, volume: f32) {
     thread::spawn(move || {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -42,35 +44,35 @@ fn play_sound(path: String, volume: f32) {
 
 fn play_bell(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\bell.mp3"),
+        String::from(r"resources\sounds_files\bell.mp3"),
         0.15 * volume_mod as f32,
     );
 }
 
 fn play_flap(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\flap.wav"),
+        String::from(r"resources\sounds_files\flap.wav"),
         0.3 * volume_mod as f32,
     );
 }
 
 fn play_splat(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\splat.wav"),
+        String::from(r"resources\sounds_files\splat.wav"),
         0.04 * volume_mod as f32,
     );
 }
 
 fn play_setting_click(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\setting.wav"),
+        String::from(r"resources\sounds_files\setting.wav"),
         0.04 * volume_mod as f32,
     );
 }
 
 fn play_encouragement(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\encouragement.wav"),
+        String::from(r"resources\sounds_files\encouragement.wav"),
         0.015 * volume_mod as f32,
     );
 }
@@ -85,7 +87,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             flap_velocity: -2.0,
-            min_gap_size: 2,
+            min_gap_size: 5,
             volume: 5,
         }
     }
@@ -95,6 +97,7 @@ struct Player {
     x: i32,
     y: i32,
     velocity: f32,
+    current_frame: usize,
 }
 
 impl Player {
@@ -103,11 +106,23 @@ impl Player {
             x,
             y,
             velocity: 0.0,
+            current_frame: 0,
         }
     }
 
     fn render(&mut self, ctx: &mut BTerm) {
-        ctx.set(1, self.y, YELLOW, BLACK, to_cp437('@'))
+        ctx.set_active_console(1);
+        ctx.cls();
+        ctx.set_fancy(
+            PointF::new(1.0, self.y as f32),
+            1,
+            Degrees::new(0.0),
+            PointF::new(3.0, 3.0),
+            WHITE,
+            LIGHTBLUE4,
+            DRAGON_FRAMES[self.current_frame]
+        );
+        ctx.set_active_console(0);
     }
 
     fn gravity_and_move(&mut self) {
@@ -120,6 +135,9 @@ impl Player {
         if self.y < 0 {
             self.y = 0;
         }
+
+        self.current_frame += 1;
+        self.current_frame %= 5;
     }
 
     fn flap(&mut self, velocity: f32, volume_mod: i32) {
@@ -421,8 +439,16 @@ impl GameState for State {
 }
 
 fn main() -> BError {
-    let context = BTermBuilder::simple80x50()
+    println!("1");
+    let context = BTermBuilder::new()
+        .with_resource_path(r"resources")
+        .with_font(r"sprites\terminal8x8.png", 8, 8)
+        .with_font(r"sprites\DragonHatchling_Sprites.png", 32, 32)
+        .with_simple_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\terminal8x8.png")
+        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\DragonHatchling_Sprites.png")
         .with_title("Flappy Dragon")
+        .with_tile_dimensions(16, 16)
+        .with_fitscreen(true)
         .build()?;
     main_loop(context, State::new())
 }
