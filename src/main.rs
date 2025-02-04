@@ -27,6 +27,8 @@ const DEAD_SCREEN_MESSAGE: [&str; 5] = [
 ];
 
 const DRAGON_FRAMES: [u16; 5] = [0, 1, 2, 3, 4];
+const DEV_CONSOLE_LAYER: usize = 2;
+const DRAGON_CONSOLE_LAYER: usize = 1;
 
 fn play_sound(path: String, volume: f32) {
     thread::spawn(move || {
@@ -111,7 +113,7 @@ impl Player {
     }
 
     fn render(&mut self, ctx: &mut BTerm) {
-        ctx.set_active_console(1);
+        ctx.set_active_console(DRAGON_CONSOLE_LAYER);
         ctx.cls();
         ctx.set_fancy(
             PointF::new(1.0, self.y as f32),
@@ -237,6 +239,10 @@ impl State {
             self.player.gravity_and_move();
         }
 
+        ctx.set_active_console(DEV_CONSOLE_LAYER);
+        ctx.cls();
+        ctx.set_active_console(0);
+
         //render ground
         // must be before obstacle
         for x in 0..SCREEN_WIDTH {
@@ -291,6 +297,10 @@ impl State {
                 format!("Current Obstable Gap Size: {}", self.obstacle.size),
             );
             ctx.print_centered(0, "(D) DEV VIEW");
+            ctx.set_active_console(DEV_CONSOLE_LAYER);
+            ctx.cls();
+            ctx.set(1, self.player.y, YELLOW, YELLOW, 3);
+            ctx.set_active_console(0);
         }
 
         self.obstacle.render(ctx, self.player.x);
@@ -313,6 +323,14 @@ impl State {
         }
 
         if self.player.y > SCREEN_HEIGHT || self.obstacle.hit_obstacle(&self.player) {
+            ctx.set_active_console(DEV_CONSOLE_LAYER);
+            ctx.cls();
+            ctx.set_active_console(0);
+
+            ctx.set_active_console(DEV_CONSOLE_LAYER);
+            ctx.cls();
+            ctx.set_active_console(0);
+
             self.mode = GameMode::End;
             let mut rng = thread_rng();
             play_splat(self.settings.volume);
@@ -446,6 +464,7 @@ fn main() -> BError {
         .with_font(r"sprites\DragonHatchling_Sprites.png", 32, 32)
         .with_simple_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\terminal8x8.png")
         .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\DragonHatchling_Sprites.png")
+        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, r"sprites\terminal8x8.png")
         .with_title("Flappy Dragon")
         .with_tile_dimensions(16, 16)
         .with_fitscreen(true)
