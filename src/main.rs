@@ -6,6 +6,8 @@ use rodio::{Decoder, OutputStream, Sink};
 use std::fs::File;
 use std::io::BufReader;
 use std::thread;
+use tempfile::TempDir;
+use zip::read::ZipArchive;
 
 const SCREEN_WIDTH: i32 = 80;
 const SCREEN_HEIGHT: i32 = 50;
@@ -26,6 +28,10 @@ const DEAD_SCREEN_MESSAGE: [&str; 5] = [
     "AH THE SATISFYING SOUND OF \"SPLAT\"",
 ];
 
+const DRAGON_FRAMES: [u16; 5] = [0, 1, 2, 3, 4];
+const DEV_CONSOLE_LAYER: usize = 2;
+const DRAGON_CONSOLE_LAYER: usize = 1;
+
 fn play_sound(path: String, volume: f32) {
     thread::spawn(move || {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -42,35 +48,35 @@ fn play_sound(path: String, volume: f32) {
 
 fn play_bell(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\bell.mp3"),
+        String::from(r"resources\sounds_files\bell.mp3"),
         0.15 * volume_mod as f32,
     );
 }
 
 fn play_flap(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\flap.wav"),
+        String::from(r"resources\sounds_files\flap.wav"),
         0.3 * volume_mod as f32,
     );
 }
 
 fn play_splat(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\splat.wav"),
+        String::from(r"resources\sounds_files\splat.wav"),
         0.04 * volume_mod as f32,
     );
 }
 
 fn play_setting_click(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\setting.wav"),
+        String::from(r"resources\sounds_files\setting.wav"),
         0.04 * volume_mod as f32,
     );
 }
 
 fn play_encouragement(volume_mod: i32) {
     play_sound(
-        String::from(r"sounds_files\encouragement.wav"),
+        String::from(r"resources\sounds_files\encouragement.wav"),
         0.015 * volume_mod as f32,
     );
 }
@@ -85,7 +91,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             flap_velocity: -2.0,
-            min_gap_size: 2,
+            min_gap_size: 5,
             volume: 5,
         }
     }
@@ -95,6 +101,7 @@ struct Player {
     x: i32,
     y: i32,
     velocity: f32,
+    current_frame: usize,
 }
 
 impl Player {
@@ -103,11 +110,23 @@ impl Player {
             x,
             y,
             velocity: 0.0,
+            current_frame: 0,
         }
     }
 
     fn render(&mut self, ctx: &mut BTerm) {
-        ctx.set(1, self.y, YELLOW, BLACK, to_cp437('@'))
+        ctx.set_active_console(DRAGON_CONSOLE_LAYER);
+        ctx.cls();
+        ctx.set_fancy(
+            PointF::new(1.0, self.y as f32),
+            1,
+            Degrees::new(0.0),
+            PointF::new(3.0, 3.0),
+            WHITE,
+            LIGHTBLUE4,
+            DRAGON_FRAMES[self.current_frame],
+        );
+        ctx.set_active_console(0);
     }
 
     fn gravity_and_move(&mut self) {
@@ -120,6 +139,9 @@ impl Player {
         if self.y < 0 {
             self.y = 0;
         }
+
+        self.current_frame += 1;
+        self.current_frame %= 5;
     }
 
     fn flap(&mut self, velocity: f32, volume_mod: i32) {
@@ -219,6 +241,10 @@ impl State {
             self.player.gravity_and_move();
         }
 
+        ctx.set_active_console(DEV_CONSOLE_LAYER);
+        ctx.cls();
+        ctx.set_active_console(0);
+
         //render ground
         // must be before obstacle
         for x in 0..SCREEN_WIDTH {
@@ -273,6 +299,10 @@ impl State {
                 format!("Current Obstable Gap Size: {}", self.obstacle.size),
             );
             ctx.print_centered(0, "(D) DEV VIEW");
+            ctx.set_active_console(DEV_CONSOLE_LAYER);
+            ctx.cls();
+            ctx.set(1, self.player.y, YELLOW, YELLOW, 3);
+            ctx.set_active_console(0);
         }
 
         self.obstacle.render(ctx, self.player.x);
@@ -295,6 +325,14 @@ impl State {
         }
 
         if self.player.y > SCREEN_HEIGHT || self.obstacle.hit_obstacle(&self.player) {
+            ctx.set_active_console(DEV_CONSOLE_LAYER);
+            ctx.cls();
+            ctx.set_active_console(0);
+
+            ctx.set_active_console(DRAGON_CONSOLE_LAYER);
+            ctx.cls();
+            ctx.set_active_console(0);
+
             self.mode = GameMode::End;
             let mut rng = thread_rng();
             play_splat(self.settings.volume);
@@ -420,9 +458,44 @@ impl GameState for State {
     }
 }
 
+fn load_sprites() -> TempDir {
+    let temp_dir = TempDir::new().expect("failed to make tempdir");
+    let temp_dir_path = temp_dir.path();
+
+    let zip_file_path = r"resources\sprites.zip";
+    let file = File::open(zip_file_path).expect("Failed to get file path");
+    let mut archive = ZipArchive::new(file).expect("Failed to get archive path");
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).expect("Failed to get index");
+        let out_path = temp_dir_path.join(file.name());
+
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+
+        let mut out_file = File::create(out_path).expect("Failed to Extract");
+        std::io::copy(&mut file, &mut out_file).expect("Failed to copy");
+    }
+
+    temp_dir
+}
+
 fn main() -> BError {
-    let context = BTermBuilder::simple80x50()
+    let temp_dir = load_sprites();
+    let temp_dir_path = temp_dir.path();
+    let term_file_path = format!(r"{}\terminal8x8.png", temp_dir_path.display());
+    let dragon_file_path = format!(r"{}\DragonHatchling_Sprites.png", temp_dir_path.display());
+
+    let context = BTermBuilder::new()
+        .with_font(&term_file_path, 8, 8)
+        .with_font(&dragon_file_path, 32, 32)
+        .with_simple_console(SCREEN_WIDTH, SCREEN_HEIGHT, &term_file_path)
+        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, &dragon_file_path)
+        .with_fancy_console(SCREEN_WIDTH, SCREEN_HEIGHT, &term_file_path)
         .with_title("Flappy Dragon")
+        .with_tile_dimensions(16, 16)
+        .with_fitscreen(true)
         .build()?;
     main_loop(context, State::new())
 }
