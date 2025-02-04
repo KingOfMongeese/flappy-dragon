@@ -327,7 +327,7 @@ impl State {
             ctx.cls();
             ctx.set_active_console(0);
 
-            ctx.set_active_console(DEV_CONSOLE_LAYER);
+            ctx.set_active_console(DRAGON_CONSOLE_LAYER);
             ctx.cls();
             ctx.set_active_console(0);
 
